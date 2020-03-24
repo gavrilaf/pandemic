@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pandemia</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<table>
+    <tr>
+        <td>
+            <canvas id="canvas" width="500" height="500" style="border: 1px solid black;">
+            </canvas>
+        </td>
+        <td>
+            <table>
+                <tr>
+                    <td>
+                        Incubation length:
+                    </td>
+                    <td>
+                        <input type="number" id="incubation-length" value="4"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Disease length:
+                    </td>
+                    <td>
+                        <input type="number" id="disease-length" value="4"/>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>
+                        Disease probability:
+                    </td>
+                    <td>
+                        <input type="number" id="disease-prob" value="0.13"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Disease probability for cured:
+                    </td>
+                    <td>
+                        <input type="number" id="cured-disease-prob" value="0.01"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Mortality probability:
+                    </td>
+                    <td>
+                        <input type="number" id="mortality-prob" value="0.05"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Quarantine start:
+                    </td>
+                    <td>
+                        <input type="number" id="quarantine-start-time" value="50"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Quarantine factor:
+                    </td>
+                    <td>
+                        <input type="number" id="quarantine-factor" value="0.75"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Hospitals capacity:
+                    </td>
+                    <td>
+                        <input type="number" id="hospitals-capacity" value="3"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        Hospital factor:
+                    </td>
+                    <td>
+                        <input type="number" id="hospital-factor" value="0.5"/>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+<table style="padding: 4px">
+    <tr>
+        <td>
+            <button class="button" id="model-run">Run</button>
+        </td>
+        <td>
+            <button class="button" id="model-step">Step</button>
+        </td>
+        <td>
+            <button class="button" id="model-clear">Clear</button>
+        </td>
+    </tr>
+</table>
+
+<table id="stat">
+    <tr>
+        <td>Population</td>
+        <td id="total">0</td>
+    </tr>
+    <tr>
+        <td>Step</td>
+        <td id="step">0</td>
+    </tr>
+    <tr>
+        <td>Healthy</td>
+        <td id="healthy">0</td>
+    </tr>
+    <tr>
+        <td>Carriers</td>
+        <td id="carriers">0</td>
+    </tr>
+    <tr>
+        <td>Ill</td>
+        <td id="ill">0</td>
+    </tr>
+    <tr>
+        <td>Cured</td>
+        <td id="cured">0</td>
+    </tr>
+    <tr>
+        <td>Dead</td>
+        <td id="dead">0</td>
+    </tr>
+</table>
+
+<script src="src/main.js"></script>
+
+</body>
+</html>
