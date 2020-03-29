@@ -1,14 +1,21 @@
 {
   "compilerOptions": {
     "target": "es5",
+    "module": "es6",
+    "outDir": "./dist/",
     "sourceMap": true,
     "lib": [
-      "dom",
       "es5",
-      "scripthost",
-      "es2015.collection"
-    ]
+      "dom",
+      "es6",
+      "scripthost"
+    ],
+    "baseUrl": ".",
+    "allowJs": true
   },
+  "include": [
+    "./src/"
+  ],
   "exclude": [
     "node_modules"
   ]

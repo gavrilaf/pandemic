@@ -1,14 +1,6 @@
+import {State, Simulation} from "./simulation"
 
-const cellSize = 10
-
-enum State {
-    healthy,
-    ill,
-    carrier,
-    cured,
-    dead,
-    hospitalized
-}
+const cellSize = 5;
 
 const colors = new Map([
     [State.healthy, "gray"],
@@ -18,211 +10,6 @@ const colors = new Map([
     [State.dead, "black"],
     [State.hospitalized, "blue"]
 ])
-
-interface Sufferer {
-    x: number
-    y: number
-    days: number
-    state: State
-}
-
-function makeSufferer(x: number, y: number): Sufferer {
-    return {
-        x: x,
-        y: y,
-        days: 1,
-        state: State.carrier
-    }
-}
-
-class Simulation {
-
-    public config = {
-        incubationLength: 4,
-        diseaseLength: 4,
-        fatalityProbability: 0.05,
-        diseaseProbabilities: new Map([
-            [State.healthy, 0.13],
-            [State.cured, 0.01]
-        ]),
-        quarantineStart: 20,
-        quarantineFactor: 0.9,
-        hospitalsCapacity: 25,
-        hospitalFactor: 0.6
-    }
-
-    public readonly  width: number
-    public readonly  height: number
-
-    public step: number
-    public world: State[][]
-
-    public totalCount: number
-    public healthyCount: number
-    public carriesCount: number
-    public illCount: number
-    public curedCount: number
-    public deadCount: number
-
-    private hospitalized: number
-    private sufferers: Sufferer[]
-
-    constructor(width: number, height: number) {
-        this.height = height
-        this.width = width
-
-        this.reset()
-    }
-
-    reset() {
-        this.world = []
-        this.sufferers = []
-
-        this.hospitalized = 0
-
-        for (let i = 0; i < this.height; ++i) {
-            this.world[i] = []
-            for (let j = 0; j < this.width; ++j) {
-                this.world[i][j] = State.healthy
-            }
-        }
-
-        this.world[Math.round(this.height/2)][Math.round(this.width/2)] = State.carrier
-        this.sufferers.push(makeSufferer(Math.round(this.height/2), Math.round(this.width/2)));
-
-        this.totalCount = this.height * this.width
-        this.step = 0
-
-        this.updateStat()
-    }
-
-    update() {
-        let affected: [number, number][] = []
-
-        for (let s of this.sufferers) {
-            if (this.infectCell(s.x, s.y - 1)) {
-                affected.push([s.x, s.y - 1])
-            }
-
-            if (this.infectCell(s.x, s.y + 1)) {
-                affected.push([s.x, s.y + 1])
-            }
-
-            if (this.infectCell(s.x - 1, s.y)) {
-                affected.push([s.x - 1, s.y])
-            }
-
-            if (this.infectCell(s.x + 1, s.y)) {
-                affected.push([s.x + 1, s.y])
-            }
-        }
-
-        this.sufferers = this.sufferers.map((s) => {
-            s.days += 1
-
-            if (s.days == this.config.incubationLength) {
-                s.state = State.ill
-                if (this.hospitalized < this.config.hospitalsCapacity) {
-                    s.state = State.hospitalized
-                    this.hospitalIn()
-                }
-            }
-
-            let isLastDiseaseDay = (s.days == this.config.diseaseLength + this.config.incubationLength);
-            let isIll = s.state == State.ill || s.state == State.hospitalized;
-
-            if (isIll && isLastDiseaseDay) {
-                let fatalityProbability = this.config.fatalityProbability
-                if (s.state == State.hospitalized) {
-                    fatalityProbability *= this.config.hospitalFactor
-                    this.hospitalOut()
-                }
-
-                if (Math.random() <= fatalityProbability) {
-                    s.state = State.dead
-                } else {
-                    s.state = State.cured
-                }
-            }
-
-            return s
-        })
-
-        this.sufferers.forEach((s) => {
-            this.world[s.x][s.y] = s.state
-        })
-
-        this.sufferers = this.sufferers.filter((s) => {
-            return s.state == State.ill || s.state == State.carrier || s.state == State.hospitalized
-        })
-
-        for (let p of affected) {
-            this.sufferers.push(makeSufferer(p[0], p[1]))
-        }
-
-        this.step += 1
-
-        if (this.step == this.config.quarantineStart) {
-            this.config.diseaseProbabilities.set(State.healthy, this.config.diseaseProbabilities.get(State.healthy) * this.config.quarantineFactor);
-            this.config.diseaseProbabilities.set(State.cured, this.config.diseaseProbabilities.get(State.cured) * this.config.quarantineFactor);
-        }
-
-        this.updateStat()
-    }
-
-    private updateStat() {
-        this.healthyCount = 0
-        this.carriesCount = 0
-        this.illCount = 0
-        this.curedCount = 0
-        this.deadCount = 0
-
-        for (let i = 0; i < this.height; ++i) {
-            for (let j = 0; j < this.width; ++j) {
-                switch (this.world[i][j]) {
-                    case State.healthy:
-                        this.healthyCount +=1
-                        break
-                    case State.carrier:
-                        this.carriesCount += 1
-                        break
-                    case State.ill, State.hospitalized:
-                        this.illCount += 1
-                        break
-                    case State.cured:
-                        this.curedCount += 1
-                        break
-                    case State.dead:
-                        this.deadCount += 1
-                        break
-                }
-            }
-        }
-    }
-
-    private infectCell(x: number, y: number) {
-        if (x < 0 || y < 0 || x >= this.width || y >= this.height) {
-            return false
-        }
-
-        let probability = this.config.diseaseProbabilities.get(this.world[x][y])
-        if (probability != undefined) {
-            if (Math.random() <= probability) {
-                this.world[x][y] = State.carrier
-                return true
-            }
-        }
-        return false
-    }
-
-    private hospitalIn = () => {
-        this.hospitalized += 1
-    }
-
-    private hospitalOut = () => {
-        this.hospitalized -= 1
-    }
-}
 
 class PandemicApp {
     private readonly context: CanvasRenderingContext2D;
@@ -242,6 +29,10 @@ class PandemicApp {
         this.simulation = new Simulation(Math.round(canvas.width / cellSize), Math.round(canvas.height / cellSize));
 
         this.createUserEvents();
+        this.setSimulationParams();
+
+         this.createChart()
+
         this.draw();
     }
 
@@ -256,6 +47,46 @@ class PandemicApp {
             .addEventListener("click", this.stepEventHandler);
     }
 
+    private createChart() {
+       /* var ctx = document.getElementById('myChart');
+        var myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+                datasets: [{
+                    label: '# of Votes',
+                    data: [12, 19, 3, 5, 2, 3],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
+                }
+            }
+        });*/
+    }
+
     private clear() {
         this.lockSimulationParams(false)
         this.started = false
@@ -267,7 +98,7 @@ class PandemicApp {
     private runSimulation() {
         this.stepSimulation()
 
-        if (this.simulation.illCount > 0 || this.simulation.carriesCount > 0) {
+        if (this.simulation.isEligibleForContinue) {
             window.requestAnimationFrame(() => this.runSimulation());
         }
     }
@@ -299,19 +130,35 @@ class PandemicApp {
     }
 
     private showStat() {
-        document.getElementById("total").innerHTML = String(this.simulation.totalCount)
         document.getElementById("step").innerHTML = String(this.simulation.step)
-        document.getElementById("healthy").innerHTML = String(this.simulation.healthyCount)
-        document.getElementById("carriers").innerHTML = String(this.simulation.carriesCount)
-        document.getElementById("ill").innerHTML = String(this.simulation.illCount)
-        document.getElementById("dead").innerHTML = String(this.simulation.deadCount)
-        document.getElementById("cured").innerHTML = String(this.simulation.curedCount)
+
+        document.getElementById("total").innerHTML = String(this.simulation.statistics.totalCount)
+        document.getElementById("healthy").innerHTML = String(this.simulation.statistics.healthyCount)
+        document.getElementById("carriers").innerHTML = String(this.simulation.statistics.carriesCount)
+        document.getElementById("ill").innerHTML = String(this.simulation.statistics.illCount)
+        document.getElementById("dead").innerHTML = String(this.simulation.statistics.deadCount)
+        document.getElementById("cured").innerHTML = String(this.simulation.statistics.curedCount)
+    }
+
+    private setSimulationParams() {
+        (<HTMLInputElement>document.getElementById("incubation-length")).value = String(this.simulation.config.incubationLength);
+        (<HTMLInputElement>document.getElementById("disease-length")).value = String(this.simulation.config.diseaseLength);
+        (<HTMLInputElement>document.getElementById("mortality-prob")).value = String(this.simulation.config.mortalityProbability);
+
+        (<HTMLInputElement>document.getElementById("disease-prob")).value = String(this.simulation.config.diseaseProbabilities.get(State.healthy));
+        (<HTMLInputElement>document.getElementById("cured-disease-prob")).value = String(this.simulation.config.diseaseProbabilities.get(State.cured));
+
+         (<HTMLInputElement>document.getElementById("quarantine-start-time")).value = String(this.simulation.config.quarantineStart);
+         (<HTMLInputElement>document.getElementById("quarantine-factor")).value = String(this.simulation.config.quarantineFactor);
+
+         (<HTMLInputElement>document.getElementById("hospitals-capacity")).value = String(this.simulation.config.hospitalsCapacity);
+         (<HTMLInputElement>document.getElementById("hospital-factor")).value = String(this.simulation.config.hospitalFactor);
     }
 
     private readSimulationParams() {
         this.simulation.config.incubationLength = +(<HTMLInputElement>document.getElementById("incubation-length")).value;
         this.simulation.config.diseaseLength = +(<HTMLInputElement>document.getElementById("disease-length")).value;
-        this.simulation.config.fatalityProbability = +(<HTMLInputElement>document.getElementById("mortality-prob")).value;
+        this.simulation.config.mortalityProbability = +(<HTMLInputElement>document.getElementById("mortality-prob")).value;
 
         this.simulation.config.diseaseProbabilities.set(State.healthy, +(<HTMLInputElement>document.getElementById("disease-prob")).value);
         this.simulation.config.diseaseProbabilities.set(State.cured, +(<HTMLInputElement>document.getElementById("cured-disease-prob")).value);
