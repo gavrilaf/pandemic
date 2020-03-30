@@ -53,24 +53,29 @@ var Simulation = /** @class */ (function () {
     function Simulation(width, height) {
         this.config = {
             incubationLength: 5,
-            diseaseLength: 4,
-            mortalityProbability: 0.05,
+            diseaseLength: 5,
+            mortalityProbability: 0.02,
             diseaseProbabilities: new Map([
-                [State.healthy, 0.14],
+                [State.healthy, 0.12],
                 [State.cured, 0.01]
             ]),
             quarantineStart: 50,
             quarantineFactor: 0.75,
-            hospitalsCapacity: 5,
-            hospitalFactor: 0.5
+            hospitalsCapacity: 10,
+            hospitalFactor: 0.3
         };
         this.statistics = {
-            totalCount: 0,
-            healthyCount: 0,
-            carriesCount: 0,
-            illCount: 0,
-            curedCount: 0,
-            deadCount: 0
+            total: 0,
+            healthy: 0,
+            carries: 0,
+            ill: 0,
+            infected: 0,
+            cured: 0,
+            dead: 0,
+            day: {
+                infected: 0,
+                dead: 0
+            }
         };
         this.height = height;
         this.width = width;
@@ -88,7 +93,7 @@ var Simulation = /** @class */ (function () {
         }
         this.world[Math.round(this.height / 2)][Math.round(this.width / 2)] = State.carrier;
         this.sufferers.push(newSufferer(new Coordinate(Math.round(this.height / 2), Math.round(this.width / 2))));
-        this.statistics.totalCount = this.height * this.width;
+        this.statistics.total = this.height * this.width;
         this.step = 0;
         this.updateStat();
     };
@@ -97,19 +102,24 @@ var Simulation = /** @class */ (function () {
         var infected = [];
         for (var _i = 0, _a = this.sufferers; _i < _a.length; _i++) {
             var s = _a[_i];
-            if (this.infectCell(s.c.top)) {
+            var factor = 1;
+            if (s.state == State.hospitalized) {
+                factor = this.config.hospitalFactor;
+            }
+            if (this.infectCell(s.c.top, factor)) {
                 infected.push(s.c.top);
             }
-            if (this.infectCell(s.c.bottom)) {
+            if (this.infectCell(s.c.bottom, factor)) {
                 infected.push(s.c.bottom);
             }
-            if (this.infectCell(s.c.left)) {
+            if (this.infectCell(s.c.left, factor)) {
                 infected.push(s.c.left);
             }
-            if (this.infectCell(s.c.right)) {
+            if (this.infectCell(s.c.right, factor)) {
                 infected.push(s.c.right);
             }
         }
+        this.statistics.day = { infected: 0, dead: 0 };
         for (var _b = 0, _c = this.sufferers; _b < _c.length; _b++) {
             var s = _c[_b];
             s.days += 1;
@@ -124,12 +134,14 @@ var Simulation = /** @class */ (function () {
             var isIll = s.state == State.ill || s.state == State.hospitalized;
             if (isIll && isLastDiseaseDay) {
                 var mortalityProbability = this.config.mortalityProbability;
+                var mortalityFactor = 1;
                 if (s.state == State.hospitalized) {
-                    mortalityProbability *= this.config.hospitalFactor;
+                    mortalityFactor = this.config.hospitalFactor;
                     this.hospitalized -= 1;
                 }
-                if (Math.random() <= mortalityProbability) {
+                if (checkEventWithProbability(mortalityProbability, mortalityFactor)) {
                     s.state = State.dead;
+                    this.statistics.day.dead += 1;
                 }
                 else {
                     s.state = State.cured;
@@ -142,6 +154,7 @@ var Simulation = /** @class */ (function () {
         this.sufferers = this.sufferers.filter(function (s) {
             return s.state == State.ill || s.state == State.carrier || s.state == State.hospitalized;
         });
+        this.statistics.day.infected = infected.length;
         for (var _d = 0, infected_1 = infected; _d < infected_1.length; _d++) {
             var c = infected_1[_d];
             this.sufferers.push(newSufferer(c));
@@ -155,53 +168,64 @@ var Simulation = /** @class */ (function () {
     };
     Object.defineProperty(Simulation.prototype, "isEligibleForContinue", {
         get: function () {
-            return this.statistics.illCount > 0 || this.statistics.carriesCount > 0 || this.hospitalized > 0;
+            return this.statistics.ill > 0 || this.statistics.carries > 0 || this.hospitalized > 0;
         },
         enumerable: true,
         configurable: true
     });
     Simulation.prototype.updateStat = function () {
-        this.statistics.healthyCount = 0;
-        this.statistics.carriesCount = 0;
-        this.statistics.illCount = 0;
-        this.statistics.curedCount = 0;
-        this.statistics.deadCount = 0;
+        this.statistics.healthy = 0;
+        this.statistics.carries = 0;
+        this.statistics.ill = 0;
+        this.statistics.cured = 0;
+        this.statistics.dead = 0;
         for (var i = 0; i < this.height; ++i) {
             for (var j = 0; j < this.width; ++j) {
                 switch (this.world[i][j]) {
                     case State.healthy:
-                        this.statistics.healthyCount += 1;
+                        this.statistics.healthy += 1;
                         break;
                     case State.carrier:
-                        this.statistics.carriesCount += 1;
+                        this.statistics.carries += 1;
                         break;
-                    case State.ill, State.hospitalized:
-                        this.statistics.illCount += 1;
+                    case State.ill:
+                    case State.hospitalized:
+                        this.statistics.ill += 1;
                         break;
                     case State.cured:
-                        this.statistics.curedCount += 1;
+                        this.statistics.cured += 1;
                         break;
                     case State.dead:
-                        this.statistics.deadCount += 1;
+                        this.statistics.dead += 1;
                         break;
                 }
             }
         }
+        this.statistics.infected = this.statistics.ill + this.statistics.carries;
     };
-    Simulation.prototype.infectCell = function (c) {
+    Simulation.prototype.infectCell = function (c, factor) {
         if (c.x < 0 || c.y < 0 || c.x >= this.width || c.y >= this.height) {
             return false;
         }
         var probability = this.config.diseaseProbabilities.get(this.world[c.x][c.y]);
-        if (probability != undefined) {
-            if (Math.random() <= probability) {
-                this.world[c.x][c.y] = State.carrier;
-                return true;
-            }
+        if (checkEventWithProbability(probability, factor)) {
+            this.world[c.x][c.y] = State.carrier;
+            return true;
         }
         return false;
     };
     return Simulation;
 }());
 export { Simulation };
+function checkEventWithProbability(p, f) {
+    if (typeof p == "undefined") {
+        return false;
+    }
+    var r = Math.random();
+    var pf = p * f;
+    if (r < pf) {
+        return true;
+    }
+    return false;
+}
 //# sourceMappingURL=simulation.js.map

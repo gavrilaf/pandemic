@@ -7,6 +7,8 @@ export enum State {
     hospitalized
 }
 
+type optNumber = number | undefined
+
 class Coordinate {
     constructor(public x: number, public y: number) {
     }
@@ -49,28 +51,33 @@ export class Simulation {
 
     public config = {
         incubationLength: 5,
-        diseaseLength: 4,
-        mortalityProbability: 0.05,
+        diseaseLength: 5,
+        mortalityProbability: 0.02,
         diseaseProbabilities: new Map([
-            [State.healthy, 0.14],
+            [State.healthy, 0.12],
             [State.cured, 0.01]
         ]),
         quarantineStart: 50,
         quarantineFactor: 0.75,
-        hospitalsCapacity: 5,
-        hospitalFactor: 0.5
+        hospitalsCapacity: 10,
+        hospitalFactor: 0.3
     }
 
     public step: number
     public world: State[][]
 
     public statistics = {
-        totalCount: 0,
-        healthyCount: 0,
-        carriesCount: 0,
-        illCount: 0,
-        curedCount: 0,
-        deadCount: 0
+        total: 0,
+        healthy: 0,
+        carries: 0,
+        ill: 0,
+        infected: 0,
+        cured: 0,
+        dead: 0,
+        day: {
+            infected: 0,
+            dead: 0
+        }
     }
 
     private hospitalized: number
@@ -99,7 +106,7 @@ export class Simulation {
         this.world[Math.round(this.height/2)][Math.round(this.width/2)] = State.carrier
         this.sufferers.push(newSufferer(new Coordinate(Math.round(this.height/2), Math.round(this.width/2))));
 
-        this.statistics.totalCount = this.height * this.width
+        this.statistics.total = this.height * this.width
         this.step = 0
 
         this.updateStat()
@@ -109,22 +116,29 @@ export class Simulation {
         let infected: Coordinate[] = []
 
         for (let s of this.sufferers) {
-            if (this.infectCell(s.c.top)) {
+            let factor = 1
+            if (s.state == State.hospitalized) {
+                factor = this.config.hospitalFactor
+            }
+
+            if (this.infectCell(s.c.top, factor)) {
                 infected.push(s.c.top)
             }
 
-            if (this.infectCell(s.c.bottom)) {
+            if (this.infectCell(s.c.bottom, factor)) {
                 infected.push(s.c.bottom)
             }
 
-            if (this.infectCell(s.c.left)) {
+            if (this.infectCell(s.c.left, factor)) {
                 infected.push(s.c.left)
             }
 
-            if (this.infectCell(s.c.right)) {
+            if (this.infectCell(s.c.right, factor)) {
                 infected.push(s.c.right)
             }
         }
+
+        this.statistics.day = {infected: 0, dead: 0};
 
         for (let s of this.sufferers) {
             s.days += 1
@@ -142,13 +156,16 @@ export class Simulation {
 
             if (isIll && isLastDiseaseDay) {
                 let mortalityProbability = this.config.mortalityProbability
+                let mortalityFactor = 1
+
                 if (s.state == State.hospitalized) {
-                    mortalityProbability *= this.config.hospitalFactor
+                    mortalityFactor = this.config.hospitalFactor
                     this.hospitalized -= 1
                 }
 
-                if (Math.random() <= mortalityProbability) {
+                if (checkEventWithProbability(mortalityProbability, mortalityFactor)) {
                     s.state = State.dead
+                    this.statistics.day.dead += 1
                 } else {
                     s.state = State.cured
                 }
@@ -163,6 +180,7 @@ export class Simulation {
             return s.state == State.ill || s.state == State.carrier || s.state == State.hospitalized
         })
 
+        this.statistics.day.infected = infected.length
         for (let c of infected) {
             this.sufferers.push(newSufferer(c))
         }
@@ -178,51 +196,66 @@ export class Simulation {
     }
 
     get isEligibleForContinue(): boolean {
-        return this.statistics.illCount > 0 || this.statistics.carriesCount > 0 || this.hospitalized > 0
+        return this.statistics.ill > 0 || this.statistics.carries > 0 || this.hospitalized > 0
     }
 
     private updateStat() {
-        this.statistics.healthyCount = 0
-        this.statistics.carriesCount = 0
-        this.statistics.illCount = 0
-        this.statistics.curedCount = 0
-        this.statistics.deadCount = 0
+        this.statistics.healthy = 0
+        this.statistics.carries = 0
+        this.statistics.ill = 0
+        this.statistics.cured = 0
+        this.statistics.dead = 0
 
         for (let i = 0; i < this.height; ++i) {
             for (let j = 0; j < this.width; ++j) {
                 switch (this.world[i][j]) {
                     case State.healthy:
-                        this.statistics.healthyCount +=1
+                        this.statistics.healthy +=1
                         break
                     case State.carrier:
-                        this.statistics.carriesCount += 1
+                        this.statistics.carries += 1
                         break
-                    case State.ill, State.hospitalized:
-                        this.statistics.illCount += 1
+                    case State.ill:
+                    case State.hospitalized:
+                        this.statistics.ill += 1
                         break
                     case State.cured:
-                        this.statistics.curedCount += 1
+                        this.statistics.cured += 1
                         break
                     case State.dead:
-                        this.statistics.deadCount += 1
+                        this.statistics.dead += 1
                         break
                 }
             }
         }
+
+        this.statistics.infected = this.statistics.ill + this.statistics.carries
     }
 
-    private infectCell(c: Coordinate): boolean {
+    private infectCell(c: Coordinate, factor: number): boolean {
         if (c.x < 0 || c.y < 0 || c.x >= this.width || c.y >= this.height) {
             return false
         }
 
         let probability = this.config.diseaseProbabilities.get(this.world[c.x][c.y])
-        if (probability != undefined) {
-            if (Math.random() <= probability) {
-                this.world[c.x][c.y] = State.carrier
-                return true
-            }
+        if (checkEventWithProbability(probability, factor)) {
+            this.world[c.x][c.y] = State.carrier
+            return true
         }
+
         return false
     }
+}
+
+function checkEventWithProbability(p: optNumber, f: number): boolean {
+    if (typeof p == "undefined") {
+        return false
+    }
+
+    let r = Math.random();
+    let pf = p * f
+    if (r < pf) {
+        return true
+    }
+    return false
 }

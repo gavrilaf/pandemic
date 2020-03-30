@@ -1,5 +1,7 @@
 import { State, Simulation } from "./simulation";
-var cellSize = 5;
+import { Charts } from "./chart";
+var cellSize = 10;
+var simulationDeep = 400;
 var colors = new Map([
     [State.healthy, "gray"],
     [State.ill, "red"],
@@ -11,12 +13,17 @@ var colors = new Map([
 var PandemicApp = /** @class */ (function () {
     function PandemicApp() {
         var _this = this;
-        this.started = false;
+        this.initialized = false;
+        this.perfomed = false;
         this.clearEventHandler = function () {
             _this.clear();
         };
         this.runEventHandler = function () {
-            _this.runSimulation();
+            _this.perfomed = !_this.perfomed;
+            if (_this.perfomed) {
+                _this.runSimulation();
+            }
+            _this.updateRunButton();
         };
         this.stepEventHandler = function () {
             _this.stepSimulation();
@@ -29,76 +36,35 @@ var PandemicApp = /** @class */ (function () {
         context.lineWidth = 1;
         this.context = context;
         this.simulation = new Simulation(Math.round(canvas.width / cellSize), Math.round(canvas.height / cellSize));
-        this.createUserEvents();
         this.setSimulationParams();
-        this.createChart();
+        this.charts = new Charts();
+        this.addListeners();
         this.draw();
     }
-    PandemicApp.prototype.createUserEvents = function () {
-        document.getElementById('model-clear')
-            .addEventListener("click", this.clearEventHandler);
-        document.getElementById('model-run')
-            .addEventListener("click", this.runEventHandler);
-        document.getElementById('model-step')
-            .addEventListener("click", this.stepEventHandler);
-    };
-    PandemicApp.prototype.createChart = function () {
-        /* var ctx = document.getElementById('myChart');
-         var myChart = new Chart(ctx, {
-             type: 'bar',
-             data: {
-                 labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-                 datasets: [{
-                     label: '# of Votes',
-                     data: [12, 19, 3, 5, 2, 3],
-                     backgroundColor: [
-                         'rgba(255, 99, 132, 0.2)',
-                         'rgba(54, 162, 235, 0.2)',
-                         'rgba(255, 206, 86, 0.2)',
-                         'rgba(75, 192, 192, 0.2)',
-                         'rgba(153, 102, 255, 0.2)',
-                         'rgba(255, 159, 64, 0.2)'
-                     ],
-                     borderColor: [
-                         'rgba(255, 99, 132, 1)',
-                         'rgba(54, 162, 235, 1)',
-                         'rgba(255, 206, 86, 1)',
-                         'rgba(75, 192, 192, 1)',
-                         'rgba(153, 102, 255, 1)',
-                         'rgba(255, 159, 64, 1)'
-                     ],
-                     borderWidth: 1
-                 }]
-             },
-             options: {
-                 scales: {
-                     yAxes: [{
-                         ticks: {
-                             beginAtZero: true
-                         }
-                     }]
-                 }
-             }
-         });*/
-    };
     PandemicApp.prototype.clear = function () {
         this.lockSimulationParams(false);
-        this.started = false;
+        this.initialized = false;
+        this.perfomed = false;
         this.simulation.reset();
+        this.charts.clear();
         this.draw();
     };
     PandemicApp.prototype.runSimulation = function () {
         var _this = this;
         this.stepSimulation();
-        if (this.simulation.isEligibleForContinue) {
+        if (this.perfomed && this.simulation.isEligibleForContinue && this.simulation.step < simulationDeep) {
             window.requestAnimationFrame(function () { return _this.runSimulation(); });
+        }
+        else {
+            this.perfomed = false;
+            this.updateRunButton();
         }
     };
     PandemicApp.prototype.stepSimulation = function () {
-        if (!this.started) {
+        if (!this.initialized) {
             this.readSimulationParams();
             this.lockSimulationParams(true);
-            this.started = true;
+            this.initialized = true;
         }
         this.simulation.update();
         this.draw();
@@ -106,6 +72,7 @@ var PandemicApp = /** @class */ (function () {
     PandemicApp.prototype.draw = function () {
         this.drawWorld();
         this.showStat();
+        this.updateCharts();
     };
     PandemicApp.prototype.drawWorld = function () {
         var context = this.context;
@@ -118,12 +85,22 @@ var PandemicApp = /** @class */ (function () {
     };
     PandemicApp.prototype.showStat = function () {
         document.getElementById("step").innerHTML = String(this.simulation.step);
-        document.getElementById("total").innerHTML = String(this.simulation.statistics.totalCount);
-        document.getElementById("healthy").innerHTML = String(this.simulation.statistics.healthyCount);
-        document.getElementById("carriers").innerHTML = String(this.simulation.statistics.carriesCount);
-        document.getElementById("ill").innerHTML = String(this.simulation.statistics.illCount);
-        document.getElementById("dead").innerHTML = String(this.simulation.statistics.deadCount);
-        document.getElementById("cured").innerHTML = String(this.simulation.statistics.curedCount);
+        document.getElementById("total").innerHTML = String(this.simulation.statistics.total);
+        document.getElementById("healthy").innerHTML = String(this.simulation.statistics.healthy);
+        document.getElementById("carriers").innerHTML = String(this.simulation.statistics.carries);
+        document.getElementById("ill").innerHTML = String(this.simulation.statistics.ill);
+        document.getElementById("dead").innerHTML = String(this.simulation.statistics.dead);
+        document.getElementById("cured").innerHTML = String(this.simulation.statistics.cured);
+    };
+    PandemicApp.prototype.updateCharts = function () {
+        this.charts.pushStep({
+            step: this.simulation.step,
+            totalInfected: this.simulation.statistics.infected,
+            totalDead: this.simulation.statistics.dead,
+            dayInfected: this.simulation.statistics.day.infected,
+            dayDead: this.simulation.statistics.day.dead,
+            isQuarantineStep: this.simulation.step == this.simulation.config.quarantineStart
+        });
     };
     PandemicApp.prototype.setSimulationParams = function () {
         document.getElementById("incubation-length").value = String(this.simulation.config.incubationLength);
@@ -153,6 +130,22 @@ var PandemicApp = /** @class */ (function () {
         for (var _i = 0, els_1 = els; _i < els_1.length; _i++) {
             var s = els_1[_i];
             document.getElementById(s).disabled = lock;
+        }
+    };
+    PandemicApp.prototype.addListeners = function () {
+        document.getElementById('model-clear')
+            .addEventListener("click", this.clearEventHandler);
+        document.getElementById('model-run')
+            .addEventListener("click", this.runEventHandler);
+        document.getElementById('model-step')
+            .addEventListener("click", this.stepEventHandler);
+    };
+    PandemicApp.prototype.updateRunButton = function () {
+        if (this.perfomed) {
+            document.getElementById("model-run").innerHTML = "Stop";
+        }
+        else {
+            document.getElementById("model-run").innerHTML = "Run";
         }
     };
     return PandemicApp;

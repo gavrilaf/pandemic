@@ -9,7 +9,7 @@
 
 <table>
     <tr>
-        <td>
+        <td valign="top">
             <canvas id="canvas" width="500" height="500" style="border: 1px solid black;">
             </canvas>
         </td>
@@ -31,7 +31,6 @@
                         <input type="number" id="disease-length" value="4"/>
                     </td>
                 </tr>
-
                 <tr>
                     <td>
                         Disease probability:
@@ -89,55 +88,58 @@
                     </td>
                 </tr>
             </table>
-            <div id="chartdiv"></div>>
+            <table id="stat" width="100%">
+                <tr>
+                    <td>Population</td>
+                    <td id="total">0</td>
+                </tr>
+                <tr>
+                    <td>Step</td>
+                    <td id="step">0</td>
+                </tr>
+                <tr>
+                    <td>Healthy</td>
+                    <td id="healthy">0</td>
+                </tr>
+                <tr>
+                    <td>Carriers</td>
+                    <td id="carriers">0</td>
+                </tr>
+                <tr>
+                    <td>Ill</td>
+                    <td id="ill">0</td>
+                </tr>
+                <tr>
+                    <td>Cured</td>
+                    <td id="cured">0</td>
+                </tr>
+                <tr>
+                    <td>Dead</td>
+                    <td id="dead">0</td>
+                </tr>
+            </table>
+
+            <table style="padding: 4px">
+                <tr>
+                    <td>
+                        <button class="button" id="model-run">Run</button>
+                    </td>
+                    <td>
+                        <button class="button" id="model-step">Step</button>
+                    </td>
+                    <td>
+                        <button class="button" id="model-clear">Clear</button>
+                    </td>
+                </tr>
+            </table>
+
+
         </td>
     </tr>
 </table>
 
-<table style="padding: 4px">
-    <tr>
-        <td>
-            <button class="button" id="model-run">Run</button>
-        </td>
-        <td>
-            <button class="button" id="model-step">Step</button>
-        </td>
-        <td>
-            <button class="button" id="model-clear">Clear</button>
-        </td>
-    </tr>
-</table>
-
-<table id="stat">
-    <tr>
-        <td>Population</td>
-        <td id="total">0</td>
-    </tr>
-    <tr>
-        <td>Step</td>
-        <td id="step">0</td>
-    </tr>
-    <tr>
-        <td>Healthy</td>
-        <td id="healthy">0</td>
-    </tr>
-    <tr>
-        <td>Carriers</td>
-        <td id="carriers">0</td>
-    </tr>
-    <tr>
-        <td>Ill</td>
-        <td id="ill">0</td>
-    </tr>
-    <tr>
-        <td>Cured</td>
-        <td id="cured">0</td>
-    </tr>
-    <tr>
-        <td>Dead</td>
-        <td id="dead">0</td>
-    </tr>
-</table>
+<div id="chartdiv-total"></div>
+<div id="chartdiv-days"></div>
 
 <script src="dist/bundle.js"></script>
 

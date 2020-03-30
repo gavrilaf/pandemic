@@ -1,6 +1,8 @@
-import {State, Simulation} from "./simulation"
+import {State, Simulation} from "./simulation";
+import {Charts} from "./chart";
 
-const cellSize = 5;
+const cellSize = 10;
+const simulationDeep = 400
 
 const colors = new Map([
     [State.healthy, "gray"],
@@ -14,7 +16,11 @@ const colors = new Map([
 class PandemicApp {
     private readonly context: CanvasRenderingContext2D;
     private simulation: Simulation
-    private started: boolean = false
+
+    private initialized: boolean = false
+    private perfomed: boolean = false
+
+    private charts: Charts
 
     constructor() {
         let canvas = document.getElementById('canvas') as  HTMLCanvasElement;
@@ -27,87 +33,41 @@ class PandemicApp {
         this.context = context;
 
         this.simulation = new Simulation(Math.round(canvas.width / cellSize), Math.round(canvas.height / cellSize));
-
-        this.createUserEvents();
         this.setSimulationParams();
 
-         this.createChart()
+        this.charts = new Charts();
+
+        this.addListeners()
 
         this.draw();
     }
 
-    private createUserEvents() {
-        document.getElementById('model-clear')
-            .addEventListener("click", this.clearEventHandler);
-
-        document.getElementById('model-run')
-            .addEventListener("click", this.runEventHandler);
-
-        document.getElementById('model-step')
-            .addEventListener("click", this.stepEventHandler);
-    }
-
-    private createChart() {
-       /* var ctx = document.getElementById('myChart');
-        var myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-                datasets: [{
-                    label: '# of Votes',
-                    data: [12, 19, 3, 5, 2, 3],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.2)',
-                        'rgba(54, 162, 235, 0.2)',
-                        'rgba(255, 206, 86, 0.2)',
-                        'rgba(75, 192, 192, 0.2)',
-                        'rgba(153, 102, 255, 0.2)',
-                        'rgba(255, 159, 64, 0.2)'
-                    ],
-                    borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 159, 64, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    yAxes: [{
-                        ticks: {
-                            beginAtZero: true
-                        }
-                    }]
-                }
-            }
-        });*/
-    }
-
     private clear() {
         this.lockSimulationParams(false)
-        this.started = false
+        this.initialized = false
+        this.perfomed = false
 
         this.simulation.reset()
+        this.charts.clear()
         this.draw()
     }
 
     private runSimulation() {
         this.stepSimulation()
 
-        if (this.simulation.isEligibleForContinue) {
+        if (this.perfomed && this.simulation.isEligibleForContinue && this.simulation.step < simulationDeep) {
             window.requestAnimationFrame(() => this.runSimulation());
+        } else {
+            this.perfomed = false
+            this.updateRunButton()
         }
     }
 
     private stepSimulation() {
-        if (!this.started) {
+        if (!this.initialized) {
             this.readSimulationParams()
             this.lockSimulationParams(true)
-            this.started = true
+            this.initialized = true
         }
 
         this.simulation.update()
@@ -117,6 +77,7 @@ class PandemicApp {
     private draw() {
         this.drawWorld()
         this.showStat()
+        this.updateCharts()
     }
 
     private drawWorld() {
@@ -132,12 +93,23 @@ class PandemicApp {
     private showStat() {
         document.getElementById("step").innerHTML = String(this.simulation.step)
 
-        document.getElementById("total").innerHTML = String(this.simulation.statistics.totalCount)
-        document.getElementById("healthy").innerHTML = String(this.simulation.statistics.healthyCount)
-        document.getElementById("carriers").innerHTML = String(this.simulation.statistics.carriesCount)
-        document.getElementById("ill").innerHTML = String(this.simulation.statistics.illCount)
-        document.getElementById("dead").innerHTML = String(this.simulation.statistics.deadCount)
-        document.getElementById("cured").innerHTML = String(this.simulation.statistics.curedCount)
+        document.getElementById("total").innerHTML = String(this.simulation.statistics.total)
+        document.getElementById("healthy").innerHTML = String(this.simulation.statistics.healthy)
+        document.getElementById("carriers").innerHTML = String(this.simulation.statistics.carries)
+        document.getElementById("ill").innerHTML = String(this.simulation.statistics.ill)
+        document.getElementById("dead").innerHTML = String(this.simulation.statistics.dead)
+        document.getElementById("cured").innerHTML = String(this.simulation.statistics.cured)
+    }
+
+    private updateCharts() {
+        this.charts.pushStep({
+            step: this.simulation.step,
+            totalInfected: this.simulation.statistics.infected,
+            totalDead: this.simulation.statistics.dead,
+            dayInfected: this.simulation.statistics.day.infected,
+            dayDead: this.simulation.statistics.day.dead,
+            isQuarantineStep: this.simulation.step == this.simulation.config.quarantineStart
+        })
     }
 
     private setSimulationParams() {
@@ -179,16 +151,41 @@ class PandemicApp {
         }
     }
 
+    private addListeners() {
+        document.getElementById('model-clear')
+            .addEventListener("click", this.clearEventHandler);
+
+        document.getElementById('model-run')
+            .addEventListener("click", this.runEventHandler);
+
+        document.getElementById('model-step')
+            .addEventListener("click", this.stepEventHandler);
+    }
+
     private clearEventHandler = () => {
         this.clear()
     }
 
     private runEventHandler = () => {
-        this.runSimulation();
+        this.perfomed = !this.perfomed
+
+        if (this.perfomed) {
+            this.runSimulation();
+        }
+
+        this.updateRunButton()
     }
 
     private stepEventHandler = () => {
         this.stepSimulation();
+    }
+
+    private updateRunButton() {
+        if (this.perfomed) {
+            document.getElementById("model-run").innerHTML = "Stop"
+        } else {
+            document.getElementById("model-run").innerHTML = "Run"
+        }
     }
 }
 
