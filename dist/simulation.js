@@ -52,16 +52,16 @@ function newSufferer(c) {
 var Simulation = /** @class */ (function () {
     function Simulation(width, height) {
         this.config = {
-            incubationLength: 5,
-            diseaseLength: 5,
+            incubationLength: 6,
+            diseaseLength: 6,
             mortalityProbability: 0.02,
             diseaseProbabilities: new Map([
-                [State.healthy, 0.12],
+                [State.healthy, 0.13],
                 [State.cured, 0.01]
             ]),
             quarantineStart: 50,
-            quarantineFactor: 0.75,
-            hospitalsCapacity: 10,
+            quarantineFactor: 0.65,
+            hospitalsCapacity: 50,
             hospitalFactor: 0.3
         };
         this.statistics = {

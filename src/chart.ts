@@ -32,15 +32,7 @@ export class Charts {
             dead: s.totalDead
         }
 
-        if (s.isQuarantineStep) {
-            illTotal.label = "Qurantine";
-            illTotal.color = am4core.color("#555");
-            illTotal.opacity = 1
-        }
-
-        this.chartTotal.addData([illTotal, deadTotal])
-
-        let illDay = {
+        let illDay: any = {
             step: s.step,
             ill: s.dayInfected
         }
@@ -50,6 +42,17 @@ export class Charts {
             dead: s.dayDead
         }
 
+        if (s.isQuarantineStep) {
+            illTotal.label = "Qurantine";
+            illTotal.color = am4core.color("#555");
+            illTotal.opacity = 1
+
+            illDay.label = "Qurantine";
+            illDay.color = am4core.color("#555");
+            illDay.opacity = 1
+        }
+
+        this.chartTotal.addData([illTotal, deadTotal])
         this.chartDays.addData([illDay, deadDay])
     }
 
@@ -131,6 +134,39 @@ export class Charts {
         illSeries.dataFields.categoryX = "step"
         illSeries.dataFields.valueY = "ill";
         illSeries.name = "Infected"
+
+        // Set up bullets
+        let bullet = illSeries.bullets.push(new am4charts.Bullet());
+
+        let triangle = bullet.createChild(am4core.Triangle);
+        triangle.width = 15;
+        triangle.height = 13;
+        triangle.dy = -3;
+        triangle.direction = "bottom";
+        triangle.propertyFields.fill = "color";
+        triangle.propertyFields.fillOpacity = "opacity";
+        triangle.fillOpacity = 0;
+        triangle.strokeWidth = 0;
+        triangle.horizontalCenter = "middle";
+        triangle.verticalCenter = "bottom";
+
+        let label = bullet.createChild(am4core.Label);
+        label.propertyFields.text = "label";
+        label.propertyFields.fill = "color";
+        label.strokeWidth = 0;
+        label.horizontalCenter = "middle";
+        label.verticalCenter = "bottom";
+        label.dy = -20;
+
+        let line = bullet.createChild(am4core.Line);
+        line.x1 = 0;
+        line.y1 = 0;
+        line.x2 = 0;
+        line.y2 = 1000;
+        line.strokeOpacity = 0;
+        line.strokeDasharray = "3,3";
+        line.propertyFields.stroke = "color";
+        line.propertyFields.strokeOpacity = "opacity";
 
         let deadSeries = this.chartDays.series.push(new am4charts.ColumnSeries());
         deadSeries.dataFields.categoryX  = "step";
