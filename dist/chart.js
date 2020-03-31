@@ -1,11 +1,11 @@
 import * as am4core from "@amcharts/amcharts4/core";
 import * as am4charts from "@amcharts/amcharts4/charts";
-import am4themes_dataviz from "@amcharts/amcharts4/themes/dataviz";
 import am4themes_animated from "@amcharts/amcharts4/themes/animated";
-var Charts = /** @class */ (function () {
+import am4themes_dataviz from "@amcharts/amcharts4/themes/dataviz";
+var Charts = (function () {
     function Charts() {
-        am4core.useTheme(am4themes_dataviz);
         am4core.useTheme(am4themes_animated);
+        am4core.useTheme(am4themes_dataviz);
         this.createTotalChart();
         this.createDaysChart();
     }
@@ -34,6 +34,14 @@ var Charts = /** @class */ (function () {
             illDay.color = am4core.color("#555");
             illDay.opacity = 1;
         }
+        if (s.hospitalCapacityExhausted) {
+            illTotal.label = "Hospitals";
+            illTotal.color = am4core.color("#f11e41");
+            illTotal.opacity = 1;
+            illDay.label = "Hospitals";
+            illDay.color = am4core.color("#f11e41");
+            illDay.opacity = 1;
+        }
         this.chartTotal.addData([illTotal, deadTotal]);
         this.chartDays.addData([illDay, deadDay]);
     };
@@ -43,15 +51,13 @@ var Charts = /** @class */ (function () {
     };
     Charts.prototype.createTotalChart = function () {
         this.chartTotal = am4core.create("chartdiv-total", am4charts.XYChart);
-        // Create axes
         var stepAxis = this.chartTotal.xAxes.push(new am4charts.ValueAxis());
-        var valueAxis = this.chartTotal.yAxes.push(new am4charts.ValueAxis());
+        stepAxis.renderer.minGridDistance = 10;
+        this.chartTotal.yAxes.push(new am4charts.ValueAxis());
         var totalIllSeries = this.chartTotal.series.push(new am4charts.LineSeries());
         totalIllSeries.dataFields.valueX = "step";
         totalIllSeries.dataFields.valueY = "ill";
         totalIllSeries.name = "Infected";
-        totalIllSeries.tensionX = 0.8;
-        // Set up bullets
         var bullet = totalIllSeries.bullets.push(new am4charts.Bullet());
         var triangle = bullet.createChild(am4core.Triangle);
         triangle.width = 15;
@@ -84,24 +90,21 @@ var Charts = /** @class */ (function () {
         deadSeries.dataFields.valueX = "step";
         deadSeries.dataFields.valueY = "dead";
         deadSeries.name = "Dead";
-        deadSeries.tensionX = 0.8;
         this.chartTotal.cursor = new am4charts.XYCursor();
+        this.chartTotal.exporting.menu = new am4core.ExportMenu();
         this.chartTotal.legend = new am4charts.Legend();
         this.chartTotal.legend.position = "right";
     };
     Charts.prototype.createDaysChart = function () {
         this.chartDays = am4core.create("chartdiv-days", am4charts.XYChart);
-        // Create axes
         var stepAxis = this.chartDays.xAxes.push(new am4charts.CategoryAxis());
         stepAxis.dataFields.category = "step";
-        stepAxis.renderer.grid.template.location = 0;
-        stepAxis.renderer.minGridDistance = 30;
-        var valueAxis = this.chartDays.yAxes.push(new am4charts.ValueAxis());
+        stepAxis.renderer.minGridDistance = 40;
+        this.chartDays.yAxes.push(new am4charts.ValueAxis());
         var illSeries = this.chartDays.series.push(new am4charts.ColumnSeries());
         illSeries.dataFields.categoryX = "step";
         illSeries.dataFields.valueY = "ill";
         illSeries.name = "Infected";
-        // Set up bullets
         var bullet = illSeries.bullets.push(new am4charts.Bullet());
         var triangle = bullet.createChild(am4core.Triangle);
         triangle.width = 15;
@@ -135,6 +138,7 @@ var Charts = /** @class */ (function () {
         deadSeries.dataFields.valueY = "dead";
         deadSeries.name = "Dead";
         this.chartDays.cursor = new am4charts.XYCursor();
+        this.chartDays.exporting.menu = new am4core.ExportMenu();
         this.chartDays.legend = new am4charts.Legend();
         this.chartDays.legend.position = "right";
     };

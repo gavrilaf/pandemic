@@ -30,13 +30,13 @@ class Coordinate {
     }
 }
 
-interface Sufferer {
+interface Infected {
     c: Coordinate
     days: number
     state: State
 }
 
-function newSufferer(c: Coordinate): Sufferer {
+function makeInfected(c: Coordinate): Infected {
     return {
         c: c,
         days: 1,
@@ -52,7 +52,7 @@ export class Simulation {
     public config = {
         incubationLength: 6,
         diseaseLength: 6,
-        mortalityProbability: 0.02,
+        mortalityProbability: 0.05,
         diseaseProbabilities: new Map([
             [State.healthy, 0.13],
             [State.cured, 0.01]
@@ -63,15 +63,16 @@ export class Simulation {
         hospitalFactor: 0.3
     }
 
-    public step: number
-    public world: State[][]
+    public step: number = 0
+    public world: State[][] = []
 
-    public statistics = {
+    public stat = {
         total: 0,
         healthy: 0,
         carries: 0,
         ill: 0,
         infected: 0,
+        hospitalized: 0,
         cured: 0,
         dead: 0,
         day: {
@@ -80,21 +81,18 @@ export class Simulation {
         }
     }
 
-    private hospitalized: number
-    private sufferers: Sufferer[]
+    private infected: Infected[] = []
 
-    constructor(width: number, height: number) {
+    public constructor(width: number, height: number) {
         this.height = height
         this.width = width
 
         this.reset()
     }
 
-    reset() {
+    public reset(): void {
         this.world = []
-        this.sufferers = []
-
-        this.hospitalized = 0
+        this.infected = []
 
         for (let i = 0; i < this.height; ++i) {
             this.world[i] = []
@@ -103,133 +101,136 @@ export class Simulation {
             }
         }
 
-        this.world[Math.round(this.height/2)][Math.round(this.width/2)] = State.carrier
-        this.sufferers.push(newSufferer(new Coordinate(Math.round(this.height/2), Math.round(this.width/2))));
+        this.infected.push(makeInfected(new Coordinate(Math.round(this.height/2), Math.round(this.width/2))));
 
-        this.statistics.total = this.height * this.width
+        this.infected.forEach((s) => {
+            this.world[s.c.x][s.c.y] = s.state
+        })
+
+        this.stat.total = this.height * this.width
+        this.stat.hospitalized = 0
+
         this.step = 0
 
         this.updateStat()
     }
 
-    update() {
-        let infected: Coordinate[] = []
+    public update(): void {
+        let newInfected: Coordinate[] = []
 
-        for (let s of this.sufferers) {
+        for (let s of this.infected) {
             let factor = 1
             if (s.state == State.hospitalized) {
                 factor = this.config.hospitalFactor
             }
 
             if (this.infectCell(s.c.top, factor)) {
-                infected.push(s.c.top)
+                newInfected.push(s.c.top)
             }
 
             if (this.infectCell(s.c.bottom, factor)) {
-                infected.push(s.c.bottom)
+                newInfected.push(s.c.bottom)
             }
 
             if (this.infectCell(s.c.left, factor)) {
-                infected.push(s.c.left)
+                newInfected.push(s.c.left)
             }
 
             if (this.infectCell(s.c.right, factor)) {
-                infected.push(s.c.right)
+                newInfected.push(s.c.right)
             }
         }
 
-        this.statistics.day = {infected: 0, dead: 0};
+        this.stat.day = {infected: 0, dead: 0};
 
-        for (let s of this.sufferers) {
+        for (let s of this.infected) {
             s.days += 1
 
             if (s.days == this.config.incubationLength) {
                 s.state = State.ill
-                if (this.hospitalized < this.config.hospitalsCapacity) {
+                if (this.stat.hospitalized < this.config.hospitalsCapacity) {
                     s.state = State.hospitalized
-                    this.hospitalized += 1
+                    this.stat.hospitalized += 1
                 }
             }
 
-            let isLastDiseaseDay = (s.days == this.config.diseaseLength + this.config.incubationLength);
-            let isIll = s.state == State.ill || s.state == State.hospitalized;
-
-            if (isIll && isLastDiseaseDay) {
+            let isLastDiseaseDay = (s.days >= this.config.diseaseLength + this.config.incubationLength);
+            if (isLastDiseaseDay) {
                 let mortalityProbability = this.config.mortalityProbability
                 let mortalityFactor = 1
 
                 if (s.state == State.hospitalized) {
                     mortalityFactor = this.config.hospitalFactor
-                    this.hospitalized -= 1
+                    this.stat.hospitalized -= 1
                 }
 
                 if (checkEventWithProbability(mortalityProbability, mortalityFactor)) {
                     s.state = State.dead
-                    this.statistics.day.dead += 1
+                    this.stat.day.dead += 1
                 } else {
                     s.state = State.cured
                 }
             }
         }
 
-        this.sufferers.forEach((s) => {
+        this.infected.forEach((s) => {
             this.world[s.c.x][s.c.y] = s.state
         })
 
-        this.sufferers = this.sufferers.filter((s) => {
+        this.infected = this.infected.filter((s) => {
             return s.state == State.ill || s.state == State.carrier || s.state == State.hospitalized
         })
 
-        this.statistics.day.infected = infected.length
-        for (let c of infected) {
-            this.sufferers.push(newSufferer(c))
+        this.stat.day.infected = newInfected.length
+        for (let c of newInfected) {
+            this.infected.push(makeInfected(c))
         }
 
         this.step += 1
 
         if (this.step == this.config.quarantineStart) {
-            this.config.diseaseProbabilities.set(State.healthy, this.config.diseaseProbabilities.get(State.healthy) * this.config.quarantineFactor);
-            this.config.diseaseProbabilities.set(State.cured, this.config.diseaseProbabilities.get(State.cured) * this.config.quarantineFactor);
+            this.config.diseaseProbabilities.set(State.healthy, this.config.diseaseProbabilities.get(State.healthy)! * this.config.quarantineFactor);
+            this.config.diseaseProbabilities.set(State.cured, this.config.diseaseProbabilities.get(State.cured)! * this.config.quarantineFactor);
         }
 
         this.updateStat()
     }
 
-    get isEligibleForContinue(): boolean {
-        return this.statistics.ill > 0 || this.statistics.carries > 0 || this.hospitalized > 0
+    public get isEligibleForContinue(): boolean {
+        return this.stat.ill > 0 || this.stat.carries > 0 || this.stat.hospitalized > 0
     }
 
-    private updateStat() {
-        this.statistics.healthy = 0
-        this.statistics.carries = 0
-        this.statistics.ill = 0
-        this.statistics.cured = 0
-        this.statistics.dead = 0
+    private updateStat(): void {
+        this.stat.healthy = 0
+        this.stat.carries = 0
+        this.stat.ill = 0
+        this.stat.cured = 0
+        this.stat.dead = 0
 
         for (let i = 0; i < this.height; ++i) {
             for (let j = 0; j < this.width; ++j) {
                 switch (this.world[i][j]) {
                     case State.healthy:
-                        this.statistics.healthy +=1
+                        this.stat.healthy +=1
                         break
                     case State.carrier:
-                        this.statistics.carries += 1
+                        this.stat.carries += 1
                         break
                     case State.ill:
                     case State.hospitalized:
-                        this.statistics.ill += 1
+                        this.stat.ill += 1
                         break
                     case State.cured:
-                        this.statistics.cured += 1
+                        this.stat.cured += 1
                         break
                     case State.dead:
-                        this.statistics.dead += 1
+                        this.stat.dead += 1
                         break
                 }
             }
         }
 
-        this.statistics.infected = this.statistics.ill + this.statistics.carries
+        this.stat.infected = this.stat.ill + this.stat.carries
     }
 
     private infectCell(c: Coordinate, factor: number): boolean {

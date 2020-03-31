@@ -21,10 +21,11 @@ class PandemicApp {
     private perfomed: boolean = false
 
     private charts: Charts
+    private hospitalCapacityExhausted = false
 
     constructor() {
         let canvas = document.getElementById('canvas') as  HTMLCanvasElement;
-        let context = canvas.getContext("2d");
+        let context = canvas.getContext("2d")!;
         context.lineCap = 'round';
         context.lineJoin = 'round';
         context.strokeStyle = 'black';
@@ -84,31 +85,51 @@ class PandemicApp {
         let context = this.context
         for (let i = 0; i < this.simulation.height; ++i) {
             for (let j = 0; j < this.simulation.width; ++j) {
-                context.fillStyle = colors.get(this.simulation.world[i][j])
+                context.fillStyle = colors.get(this.simulation.world[i][j])!
                 context.fillRect(i*cellSize, j*cellSize, cellSize-1, cellSize-1)
             }
         }
     }
 
     private showStat() {
-        document.getElementById("step").innerHTML = String(this.simulation.step)
+        let total = this.simulation.stat.total
+        let cured = this.simulation.stat.cured
+        let dead = this.simulation.stat.dead
 
-        document.getElementById("total").innerHTML = String(this.simulation.statistics.total)
-        document.getElementById("healthy").innerHTML = String(this.simulation.statistics.healthy)
-        document.getElementById("carriers").innerHTML = String(this.simulation.statistics.carries)
-        document.getElementById("ill").innerHTML = String(this.simulation.statistics.ill)
-        document.getElementById("dead").innerHTML = String(this.simulation.statistics.dead)
-        document.getElementById("cured").innerHTML = String(this.simulation.statistics.cured)
+        let curedPercent = (cured / total) * 100
+        let deadPercent = (dead / total) * 100
+
+        let curedStr = cured + " (" + curedPercent + "%)"
+        let deadStr = dead + " (" + deadPercent + "%)"
+
+        document.getElementById("step")!.innerHTML = String(this.simulation.step)
+        document.getElementById("total")!.innerHTML = String(total)
+        document.getElementById("healthy")!.innerHTML = String(this.simulation.stat.healthy)
+        document.getElementById("carriers")!.innerHTML = String(this.simulation.stat.carries)
+        document.getElementById("ill")!.innerHTML = String(this.simulation.stat.ill)
+        document.getElementById("dead")!.innerHTML = deadStr
+        document.getElementById("cured")!.innerHTML = curedStr
     }
 
     private updateCharts() {
+        let isQuarantine = this.simulation.step == this.simulation.config.quarantineStart
+        let hospitalCapacityExhausted = this.simulation.stat.hospitalized >= this.simulation.config.hospitalsCapacity &&
+            this.simulation.config.hospitalsCapacity != 0
+
+        if (this.hospitalCapacityExhausted) {
+            hospitalCapacityExhausted = false
+        } else if (hospitalCapacityExhausted) {
+            this.hospitalCapacityExhausted = true
+        }
+
         this.charts.pushStep({
             step: this.simulation.step,
-            totalInfected: this.simulation.statistics.infected,
-            totalDead: this.simulation.statistics.dead,
-            dayInfected: this.simulation.statistics.day.infected,
-            dayDead: this.simulation.statistics.day.dead,
-            isQuarantineStep: this.simulation.step == this.simulation.config.quarantineStart
+            totalInfected: this.simulation.stat.infected,
+            totalDead: this.simulation.stat.dead,
+            dayInfected: this.simulation.stat.day.infected,
+            dayDead: this.simulation.stat.day.dead,
+            isQuarantineStep: isQuarantine,
+            hospitalCapacityExhausted: hospitalCapacityExhausted
         })
     }
 
@@ -152,13 +173,13 @@ class PandemicApp {
     }
 
     private addListeners() {
-        document.getElementById('model-clear')
+        document.getElementById('model-clear')!
             .addEventListener("click", this.clearEventHandler);
 
-        document.getElementById('model-run')
+        document.getElementById('model-run')!
             .addEventListener("click", this.runEventHandler);
 
-        document.getElementById('model-step')
+        document.getElementById('model-step')!
             .addEventListener("click", this.stepEventHandler);
     }
 
@@ -182,9 +203,9 @@ class PandemicApp {
 
     private updateRunButton() {
         if (this.perfomed) {
-            document.getElementById("model-run").innerHTML = "Stop"
+            document.getElementById("model-run")!.innerHTML = "Stop"
         } else {
-            document.getElementById("model-run").innerHTML = "Run"
+            document.getElementById("model-run")!.innerHTML = "Run"
         }
     }
 }

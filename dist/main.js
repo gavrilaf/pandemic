@@ -10,11 +10,12 @@ var colors = new Map([
     [State.dead, "black"],
     [State.hospitalized, "blue"]
 ]);
-var PandemicApp = /** @class */ (function () {
+var PandemicApp = (function () {
     function PandemicApp() {
         var _this = this;
         this.initialized = false;
         this.perfomed = false;
+        this.hospitalCapacityExhausted = false;
         this.clearEventHandler = function () {
             _this.clear();
         };
@@ -85,21 +86,30 @@ var PandemicApp = /** @class */ (function () {
     };
     PandemicApp.prototype.showStat = function () {
         document.getElementById("step").innerHTML = String(this.simulation.step);
-        document.getElementById("total").innerHTML = String(this.simulation.statistics.total);
-        document.getElementById("healthy").innerHTML = String(this.simulation.statistics.healthy);
-        document.getElementById("carriers").innerHTML = String(this.simulation.statistics.carries);
-        document.getElementById("ill").innerHTML = String(this.simulation.statistics.ill);
-        document.getElementById("dead").innerHTML = String(this.simulation.statistics.dead);
-        document.getElementById("cured").innerHTML = String(this.simulation.statistics.cured);
+        document.getElementById("total").innerHTML = String(this.simulation.stat.total);
+        document.getElementById("healthy").innerHTML = String(this.simulation.stat.healthy);
+        document.getElementById("carriers").innerHTML = String(this.simulation.stat.carries);
+        document.getElementById("ill").innerHTML = String(this.simulation.stat.ill);
+        document.getElementById("dead").innerHTML = String(this.simulation.stat.dead);
+        document.getElementById("cured").innerHTML = String(this.simulation.stat.cured);
     };
     PandemicApp.prototype.updateCharts = function () {
+        var isQuarantine = this.simulation.step == this.simulation.config.quarantineStart;
+        var hospitalCapacityExhausted = this.simulation.stat.hospitalized == this.simulation.config.hospitalsCapacity;
+        if (this.hospitalCapacityExhausted) {
+            hospitalCapacityExhausted = false;
+        }
+        else if (hospitalCapacityExhausted) {
+            this.hospitalCapacityExhausted = true;
+        }
         this.charts.pushStep({
             step: this.simulation.step,
-            totalInfected: this.simulation.statistics.infected,
-            totalDead: this.simulation.statistics.dead,
-            dayInfected: this.simulation.statistics.day.infected,
-            dayDead: this.simulation.statistics.day.dead,
-            isQuarantineStep: this.simulation.step == this.simulation.config.quarantineStart
+            totalInfected: this.simulation.stat.infected,
+            totalDead: this.simulation.stat.dead,
+            dayInfected: this.simulation.stat.day.infected,
+            dayDead: this.simulation.stat.day.dead,
+            isQuarantineStep: isQuarantine,
+            hospitalCapacityExhausted: hospitalCapacityExhausted
         });
     };
     PandemicApp.prototype.setSimulationParams = function () {

@@ -1,11 +1,12 @@
 import * as am4core from "@amcharts/amcharts4/core";
 import * as am4charts from "@amcharts/amcharts4/charts";
-import am4themes_dataviz from "@amcharts/amcharts4/themes/dataviz";
 import am4themes_animated from "@amcharts/amcharts4/themes/animated";
+import am4themes_dataviz from "@amcharts/amcharts4/themes/dataviz";
 
 export interface ChartStepData {
     step: number
     isQuarantineStep: boolean
+    hospitalCapacityExhausted: boolean
     totalInfected: number
     totalDead: number
     dayInfected: number
@@ -14,11 +15,14 @@ export interface ChartStepData {
 
 export class Charts {
     constructor() {
-        am4core.useTheme(am4themes_dataviz);
         am4core.useTheme(am4themes_animated);
+        am4core.useTheme(am4themes_dataviz);
 
-        this.createTotalChart()
-        this.createDaysChart()
+        this.chartTotal = am4core.create("chartdiv-total", am4charts.XYChart);
+        this.chartDays = am4core.create("chartdiv-days", am4charts.XYChart);
+
+        this.initTotalChart()
+        this.initDaysChart()
     }
 
     pushStep(s: ChartStepData) {
@@ -52,6 +56,16 @@ export class Charts {
             illDay.opacity = 1
         }
 
+        if (s.hospitalCapacityExhausted) {
+            illTotal.label = "Hospitals";
+            illTotal.color = am4core.color("#f11e41");
+            illTotal.opacity = 1
+
+            illDay.label = "Hospitals";
+            illDay.color = am4core.color("#f11e41");
+            illDay.opacity = 1
+        }
+
         this.chartTotal.addData([illTotal, deadTotal])
         this.chartDays.addData([illDay, deadDay])
     }
@@ -61,18 +75,17 @@ export class Charts {
         this.chartTotal.data = []
     }
 
-    private createTotalChart() {
-        this.chartTotal = am4core.create("chartdiv-total", am4charts.XYChart);
-
+    private initTotalChart() {
         // Create axes
         let stepAxis = this.chartTotal.xAxes.push(new am4charts.ValueAxis());
-        let valueAxis = this.chartTotal.yAxes.push(new am4charts.ValueAxis());
+        stepAxis.renderer.minGridDistance = 10;
+
+        this.chartTotal.yAxes.push(new am4charts.ValueAxis());
 
         let totalIllSeries = this.chartTotal.series.push(new am4charts.LineSeries());
         totalIllSeries.dataFields.valueX = "step";
         totalIllSeries.dataFields.valueY = "ill";
         totalIllSeries.name = "Infected"
-        totalIllSeries.tensionX = 0.8
 
         // Set up bullets
         let bullet = totalIllSeries.bullets.push(new am4charts.Bullet());
@@ -111,24 +124,23 @@ export class Charts {
         deadSeries.dataFields.valueX = "step";
         deadSeries.dataFields.valueY = "dead";
         deadSeries.name = "Dead"
-        deadSeries.tensionX = 0.8
+        //deadSeries.tensionX = 0.8
 
         this.chartTotal.cursor = new am4charts.XYCursor();
+        this.chartTotal.exporting.menu = new am4core.ExportMenu();
 
         this.chartTotal.legend = new am4charts.Legend();
         this.chartTotal.legend.position = "right";
     }
 
-    private createDaysChart() {
-        this.chartDays = am4core.create("chartdiv-days", am4charts.XYChart);
-
+    private initDaysChart() {
         // Create axes
         let stepAxis = this.chartDays.xAxes.push(new am4charts.CategoryAxis());
         stepAxis.dataFields.category = "step";
-        stepAxis.renderer.grid.template.location = 0;
-        stepAxis.renderer.minGridDistance = 30;
+        //stepAxis.renderer.grid.template.location = 0;
+        stepAxis.renderer.minGridDistance = 40;
 
-        let valueAxis = this.chartDays.yAxes.push(new am4charts.ValueAxis());
+        this.chartDays.yAxes.push(new am4charts.ValueAxis());
 
         let illSeries = this.chartDays.series.push(new am4charts.ColumnSeries());
         illSeries.dataFields.categoryX = "step"
@@ -174,6 +186,7 @@ export class Charts {
         deadSeries.name = "Dead"
 
         this.chartDays.cursor = new am4charts.XYCursor();
+        this.chartDays.exporting.menu = new am4core.ExportMenu();
 
         this.chartDays.legend = new am4charts.Legend();
         this.chartDays.legend.position = "right";
