@@ -1,5 +1,4 @@
 var path = require('path');
-var webpack = require('webpack')
 const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
@@ -23,6 +22,6 @@ module.exports = {
     },
     output: {
         filename: 'bundle.js',
-        path: path.resolve(__dirname, 'dist'),
+        path: path.resolve(__dirname, 'site/dist'),
     },
 };
