@@ -18,7 +18,7 @@ class PandemicApp {
     private simulation: Simulation
 
     private initialized: boolean = false
-    private perfomed: boolean = false
+    private performed: boolean = false
 
     private charts: Charts
     private hospitalCapacityExhausted = false
@@ -46,7 +46,9 @@ class PandemicApp {
     private clear() {
         this.lockSimulationParams(false)
         this.initialized = false
-        this.perfomed = false
+        this.performed = false
+
+        this.hospitalCapacityExhausted = false
 
         this.simulation.reset()
         this.charts.clear()
@@ -56,10 +58,10 @@ class PandemicApp {
     private runSimulation() {
         this.stepSimulation()
 
-        if (this.perfomed && this.simulation.isEligibleForContinue && this.simulation.step < simulationDeep) {
+        if (this.performed && this.simulation.isEligibleForContinue && this.simulation.step < simulationDeep) {
             window.requestAnimationFrame(() => this.runSimulation());
         } else {
-            this.perfomed = false
+            this.performed = false
             this.updateRunButton()
         }
     }
@@ -99,8 +101,8 @@ class PandemicApp {
         let curedPercent = (cured / total) * 100
         let deadPercent = (dead / total) * 100
 
-        let curedStr = cured + " (" + curedPercent + "%)"
-        let deadStr = dead + " (" + deadPercent + "%)"
+        let curedStr = cured + " (" + curedPercent.toFixed(2) + "%)"
+        let deadStr = dead + " (" + deadPercent.toFixed(2) + "%)"
 
         document.getElementById("step")!.innerHTML = String(this.simulation.step)
         document.getElementById("total")!.innerHTML = String(total)
@@ -188,9 +190,9 @@ class PandemicApp {
     }
 
     private runEventHandler = () => {
-        this.perfomed = !this.perfomed
+        this.performed = !this.performed
 
-        if (this.perfomed) {
+        if (this.performed) {
             this.runSimulation();
         }
 
@@ -202,7 +204,7 @@ class PandemicApp {
     }
 
     private updateRunButton() {
-        if (this.perfomed) {
+        if (this.performed) {
             document.getElementById("model-run")!.innerHTML = "Stop"
         } else {
             document.getElementById("model-run")!.innerHTML = "Run"
