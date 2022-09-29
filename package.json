@@ -8,7 +8,7 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@amcharts/amcharts4": "^4.9.12",
+    "@amcharts/amcharts4": "^4.10.28",
     "npm-install-webpack-plugin": "^4.0.5",
     "source-map-loader": "0.2.3",
     "terser-webpack-plugin": "^2.3.5",
